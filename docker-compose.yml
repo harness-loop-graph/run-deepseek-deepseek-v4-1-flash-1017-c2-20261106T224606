@@ -1,0 +1,73 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: medapp-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medapp}
+      POSTGRES_DB: ${POSTGRES_DB:-medapp}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - medapp-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medapp} -d ${POSTGRES_DB:-medapp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - medapp
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: medapp-backend
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgres://${POSTGRES_USER:-medapp}:${POSTGRES_PASSWORD:-medapp}@db:5432/${POSTGRES_DB:-medapp}
+      SEED_PASSWORD: ${SEED_PASSWORD:-Seed!Passw0rd}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080}
+      OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-medapp-spa}
+      OAUTH_REDIRECT_URI: ${OAUTH_REDIRECT_URI:-http://localhost:8080/auth/callback}
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:3000}
+      ATTACHMENTS_DIR: /app/storage/attachments
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
+      REFRESH_TOKEN_TTL_SECONDS: ${REFRESH_TOKEN_TTL_SECONDS:-28800}
+    ports:
+      - "3000:3000"
+    volumes:
+      - medapp-attachments:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks:
+      - medapp
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    container_name: medapp-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - medapp
+
+volumes:
+  medapp-db-data:
+  medapp-attachments:
+
+networks:
+  medapp:
+    driver: bridge
