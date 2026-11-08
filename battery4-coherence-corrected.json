@@ -1,0 +1,21 @@
+{
+  "battery": "battery4-coherence",
+  "passed": true,
+  "checks": [
+    {
+      "name": "unfulfilled-contracts",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "exposed-not-invoked",
+      "passed": true,
+      "details": "informational count=11"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0
+  }
+}
